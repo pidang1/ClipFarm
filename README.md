@@ -21,3 +21,8 @@ venv\Scripts\activate
 ```bash
 pip install -r requirements.txt
 ```
+
+4. Run the app using:
+```bash
+streamlit run app.py
+```

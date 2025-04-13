@@ -36,7 +36,7 @@ def get_mock_data(file_name):
         {"start_time": 5.5, "end_time": 10.8, "text": "Today we'll explore how to automatically find the most engaging parts of your content."},
         {"start_time": 11.2, "end_time": 17.5, "text": "This technology can save content creators hours of editing time."},
         {"start_time": 18.0, "end_time": 25.3, "text": "The key is in analyzing speech patterns, sentiment, and audience reactions."},
-        {"start_time": 26.0, "end_time": 35.7, "text": "Let me show you an exciting example of how this works in practice!"},
+        {"start_time": 26.0, "end_time": 35.7, "text": "Let me show you an exciting example of how this works in practi ce!"},
         {"start_time": 36.0, "end_time": 45.5, "text": "As you can see, the algorithm detected this segment as highly engaging due to tone and keyword density."}
     ]
     
