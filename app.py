@@ -77,7 +77,7 @@ with tab1:
     st.write("Upload your video file here to generate engaging clips.")
     
     # File uploader widget
-    uploaded_file = st.file_uploader("Choose a video file", type=["mp4", "mov", "avi", "wmv", "mp3"])
+    uploaded_file = st.file_uploader("Choose a video file", type=["mp4"])
     
     if uploaded_file is not None and not st.session_state.processing_complete:
         # Show processing indicators
