@@ -1,3 +1,6 @@
 streamlit
 boto3
 dotenv
+moviepy
+boto3
+moviepy
