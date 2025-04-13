@@ -1,6 +1,5 @@
 streamlit
 boto3
 dotenv
-moviepy
 boto3
-moviepy
+moviepy==1.0.3

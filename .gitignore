@@ -17,3 +17,5 @@ venv.bak/
 
 # Transcripts folder
 transcripts/
+# Output segments
+output_segments/
