@@ -1,6 +1,3 @@
 streamlit
-<<<<<<< HEAD
 boto3
-=======
-ffmpeg-python
->>>>>>> 0b4a778f0929f7cd5765944a720922e3c1024428
+dotenv

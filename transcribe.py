@@ -2,8 +2,15 @@ import boto3
 import time
 import json
 import urllib.request
+import os
+from dotenv import load_dotenv
 
-transcribe = boto3.client('transcribe')
+# Load .env variables
+load_dotenv()
+
+AWS_ACCESS_KEY = os.environ.get("AWS_ACCESS_KEY")
+AWS_SECRET_ACCESS_KEY = os.environ.get("AWS_SECRET_ACCESS_KEY")
+transcribe = boto3.client('transcribe', region_name='us-east-1', aws_access_key_id=AWS_ACCESS_KEY, aws_secret_access_key=AWS_SECRET_ACCESS_KEY)
 
 def transcribe_video(media_uri):
     # Create a job name from the file name
