@@ -14,3 +14,5 @@ ENV/
 env.bak/
 venv.bak/
 .pytest_cache/
+# Output segments
+output_segments/
