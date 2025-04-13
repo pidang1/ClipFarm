@@ -65,7 +65,6 @@ def cut_video(input_file, segment_length=300):
 if __name__ == "__main__":
     input_video_path = r"C:\Users\pierr\Downloads\Trying the BEST STREET FOOD in NYC CHINATOWN🥢🥮⋆✶.˚.mp4"
     
-    # Check if file exists and print absolute path
     print(f"Checking for video file: {input_video_path}")
     if os.path.exists(input_video_path):
         print(f"File exists! Absolute path: {os.path.abspath(input_video_path)}")
