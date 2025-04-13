@@ -1,6 +1,6 @@
 import os
 import sys
-from moviepy.editor import VideoFileClip
+from moviepy import *
 
 # cuts video into segments of 5mins each
 def cut_video(input_file, segment_length=300):
