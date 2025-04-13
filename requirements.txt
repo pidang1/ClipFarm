@@ -1,2 +1,4 @@
 streamlit
 moviepy
+boto3
+moviepy
