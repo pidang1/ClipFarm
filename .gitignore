@@ -14,5 +14,8 @@ ENV/
 env.bak/
 venv.bak/
 .pytest_cache/
+
+# Transcripts folder
+transcripts/
 # Output segments
 output_segments/
