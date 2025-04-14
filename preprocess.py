@@ -2,6 +2,10 @@ import os
 import sys
 from moviepy.editor import VideoFileClip
 import time
+import threading
+from queue import Queue
+from queue_upload import upload_worker, upload_clip_to_s3
+
 
 def cut_video(input_file, segment_length=300, upload_queue=None, video_id=None):
     if not os.path.exists(input_file):
