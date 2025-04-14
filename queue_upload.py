@@ -14,7 +14,7 @@ load_dotenv()
 # gets AWS credentials
 AWS_ACCESS_KEY = os.getenv('AWS_ACCESS_KEY')
 AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
-AWS_REGION = os.getenv('AWS_REGION', 'us-east-1')  # Default to us-east-1 if not specified
+AWS_REGION = os.getenv('AWS_REGION', 'us-east-1')
 S3_BUCKET_NAME = 'uploaded-clips'
 
 s3_client = boto3.client(
@@ -24,7 +24,7 @@ s3_client = boto3.client(
     region_name=AWS_REGION
 )
 
-#uploads a file to S3 bucket
+# uploads a file to S3 bucket
 def upload_clip_to_s3(file_path, object_name=None):
     if object_name is None:
         object_name = os.path.basename(file_path)
