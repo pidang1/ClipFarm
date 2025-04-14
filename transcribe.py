@@ -67,4 +67,4 @@ def transcribe_video(media_uri):
     return transcript_data
 
 
-transcribe_video("s3://uploaded-clips/A one minute TEDx Talk for the digital age _ Woody Roseland _ TEDxMileHigh.mp4")
+transcribe_video("s3://uploaded-clips/57 Years Apart - A Boy And a Man Talk About Life.mp4")
