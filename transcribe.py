@@ -67,4 +67,4 @@ def transcribe_video(media_uri):
     return transcript_data
 
 
-transcribe_video("s3://uploaded-clips/57 Years Apart - A Boy And a Man Talk About Life.mp4")
+transcribe_video("s3://uploaded-clips/video_1744592340/segment_000.mp4")
