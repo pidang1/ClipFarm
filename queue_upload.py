@@ -1,12 +1,10 @@
 import os
-import sys
-import time
 import boto3
 from dotenv import load_dotenv
 from botocore.exceptions import ClientError
 from moviepy.editor import VideoFileClip
 from queue import Queue
-import threading
+
 
 # loads environment
 load_dotenv()
