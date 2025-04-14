@@ -51,7 +51,7 @@ def extract_engaging_clips_ollama(transcript_json, num_clips=3, min_duration=30,
     # Create prompt for the Ollama model
     prompt = f"""
     Below is a transcript from a video. Identify the {num_clips} most engaging, 
-    interesting, or meaningful segments (80-120 word segments) that would make excellent clips for Tiktok.
+    interesting, or meaningful segments (at least {min_duration} - {max_duration} seconds for each segment) that would make excellent clips for Tiktok.
     
     Look for segments that:
     - Contain surprising, valuable, funny, entertaining, or controversial statements
