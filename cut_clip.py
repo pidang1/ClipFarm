@@ -67,7 +67,7 @@ def extract_clips_from_s3(clips, s3_key, bucket_name="uploaded-clips", output_bu
             print(f"Clip extracted to {clip_path}")
             
             # Upload clip to S3
-            s3_clip_key = f"clips/{os.path.basename(clip_path)}"
+            s3_clip_key = f"{os.path.basename(clip_path)}"
             s3_client.upload_file(clip_path, output_bucket, s3_clip_key)
             print(f"Uploaded clip to s3://{output_bucket}/{s3_clip_key}")
             

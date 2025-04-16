@@ -1,5 +1,6 @@
 import os
 import boto3
+import uuid
 from dotenv import load_dotenv
 from botocore.exceptions import ClientError
 from moviepy.editor import VideoFileClip
@@ -28,12 +29,13 @@ def upload_clip_to_s3(file_path, object_name=None):
         object_name = os.path.basename(file_path)
     
     try:
-        print(f"Uploading {file_path} to S3 bucket {S3_BUCKET_NAME}...")
-        s3_client.upload_file(file_path, S3_BUCKET_NAME, object_name)
+        clip_id = uuid.uuid4()
+        print(f"Uploading {file_path} using the id {clip_id} to S3 bucket {S3_BUCKET_NAME}...")
+        s3_client.upload_file(clip_id, S3_BUCKET_NAME, object_name)
         print(f"Successfully uploaded {object_name} to S3")
         return True
     except ClientError as e:
-        print(f"Error uploading {file_path} to S3: {e}")
+        print(f"Error uploading {file_path} with the id {clip_id} to S3: {e}")
         return False
 
 # processes file from queue and uploads to S3
