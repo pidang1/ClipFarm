@@ -5,6 +5,8 @@ from dotenv import load_dotenv
 from botocore.exceptions import ClientError
 from moviepy.editor import VideoFileClip
 from queue import Queue
+import streamlit as st
+
 
 
 # loads environment
@@ -28,14 +30,13 @@ def upload_clip_to_s3(file_path, object_name=None):
     if object_name is None:
         object_name = os.path.basename(file_path)
     
+    st.write(f"Uploading {file_path} to S3 bucket {S3_BUCKET_NAME}...")
     try:
-        clip_id = uuid.uuid4()
-        print(f"Uploading {file_path} using the id {clip_id} to S3 bucket {S3_BUCKET_NAME}...")
-        s3_client.upload_file(clip_id, S3_BUCKET_NAME, object_name)
-        print(f"Successfully uploaded {object_name} to S3")
+        s3_client.upload_file(file_path, S3_BUCKET_NAME, object_name)
+        st.write(f"Successfully uploaded {object_name} to S3")
         return True
     except ClientError as e:
-        print(f"Error uploading {file_path} with the id {clip_id} to S3: {e}")
+        st.write(f"Error uploading {file_path} to S3: {e}")
         return False
 
 # processes file from queue and uploads to S3
@@ -48,6 +49,7 @@ def upload_worker(queue):
             break
             
         file_path = file_info['file']
+        st.write(f"Processing file: {file_path}")
         segment_index = file_info.get('segment_index', 0)
         video_id = file_info.get('video_id', 'unknown')
         

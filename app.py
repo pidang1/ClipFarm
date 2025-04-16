@@ -2,6 +2,11 @@ import streamlit as st
 import time
 from datetime import datetime
 import pandas as pd
+from preprocess import cut_video
+from queue_upload import upload_worker
+from queue import Queue
+import threading
+import uuid
 
 # Set page configuration
 st.set_page_config(
@@ -18,16 +23,48 @@ if 'current_video' not in st.session_state:
 if 'clip_suggestions' not in st.session_state:
     st.session_state.clip_suggestions = []
 
-# Mock data function - simply returns predefined data
-def get_mock_data(file_name):
+# Uploads the given file to s3 bucket
+def preprocess_and_upload(file):
+    # create an upload queue
+    upload_queue = Queue()
+    
+    # start the upload worker thread
+    upload_thread = threading.Thread(target=upload_worker, args=(upload_queue,))
+    upload_thread.start()
+    
+    # generate a video ID
+    video_id = f"{uuid.uuid4()}"
+    
+    # create 5-minute segments and add them to the upload queue
+    segments = cut_video(
+        file, 
+        segment_length=300, 
+        upload_queue=upload_queue,
+        video_id=video_id
+    )
+    
+    print(f"\nCreated {len(segments)} segments:")
+    for i, segment in enumerate(segments):
+        print(f"Segment {i}: {segment['file']} (Start: {segment['start_time']}s, Duration: {segment['duration']}s)")
+    
+    print("\nWaiting for uploads to complete...")
+    upload_queue.join()
+    
+    upload_queue.put(None)
+    upload_thread.join()
+    
+    print("\nAll segments have been uploaded to S3!")
+    
+    
+    
     # Mock video metadata
     video_data = {
         "id": datetime.now().strftime("%Y%m%d_%H%M%S"),
-        "filename": file_name,
+        "filename": "file_name",
         "upload_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "file_size_mb": 15.7,  # Mock file size
         "status": "processed",
-        "path": f"mock_path/{file_name}"
+        "path": f"mock_path/mock_path"
     }
     
     # Mock transcript data (WE WILL GET THIS WORKING ACTUALLY TRUSTTT)
@@ -84,6 +121,7 @@ with tab1:
         with st.spinner("Processing your video..."):
             # Create a progress bar
             progress_bar = st.progress(0)
+            preprocess_and_upload(uploaded_file)
             
             # Simulate (for now) transcription
             st.info("Generating transcript...")
@@ -96,10 +134,6 @@ with tab1:
             for i in range(76, 101, 5):
                 time.sleep(0.1) 
                 progress_bar.progress(i)
-            
-            # Get mock data
-            file_name = uploaded_file.name if uploaded_file.name else "unknown_file.mp4"
-            st.session_state.current_video, st.session_state.clip_suggestions = get_mock_data(file_name)
             st.session_state.processing_complete = True
             
         st.success("Processing complete! 🎉 Check the suggested clips below.")
@@ -107,22 +141,22 @@ with tab1:
     # Display results if processing is complete
     if st.session_state.processing_complete:
         st.subheader("Transcript")
-        transcript_df = pd.DataFrame([
-            {"Time": f"{seg['start_time']:.1f}s - {seg['end_time']:.1f}s", "Text": seg['text']} 
-            for seg in st.session_state.current_video["transcript"]
-        ])
-        st.dataframe(transcript_df, use_container_width=True)
+        # transcript_df = pd.DataFrame([
+        #     {"Time": f"{seg['start_time']:.1f}s - {seg['end_time']:.1f}s", "Text": seg['text']} 
+        #     for seg in st.session_state.current_video["transcript"]
+        # ])
+        # st.dataframe(transcript_df, use_container_width=True)
         
-        st.subheader("Suggested Clips")
-        for i, clip in enumerate(st.session_state.clip_suggestions):
-            with st.expander(f"Clip {i+1}: {clip['duration']}s (Confidence: {clip['confidence']:.0%})"):
-                st.write(f"**Timeframe:** {clip['start_time']:.1f}s - {clip['end_time']:.1f}s")
-                st.write(f"**Content:** {clip['transcript']}")
+        # st.subheader("Suggested Clips")
+        # for i, clip in enumerate(st.session_state.clip_suggestions):
+        #     with st.expander(f"Clip {i+1}: {clip['duration']}s (Confidence: {clip['confidence']:.0%})"):
+        #         st.write(f"**Timeframe:** {clip['start_time']:.1f}s - {clip['end_time']:.1f}s")
+        #         st.write(f"**Content:** {clip['transcript']}")
                 
-                if st.button(f"Generate Clip {i+1}", key=f"gen_clip_{i}"):
-                    with st.spinner("Generating clip..."):
-                        time.sleep(1) 
-                        st.success("Clip generated! Download link would appear here.")
+        #         if st.button(f"Generate Clip {i+1}", key=f"gen_clip_{i}"):
+        #             with st.spinner("Generating clip..."):
+        #                 time.sleep(1) 
+        #                 st.success("Clip generated! Download link would appear here.")
 
 # The other tab that will later display all processed videos
 with tab2:

@@ -1,53 +1,67 @@
 import os
 import sys
+import tempfile
 from moviepy.editor import VideoFileClip
-import time
+import streamlit as st
 import threading
 from queue import Queue
 from queue_upload import upload_worker, upload_clip_to_s3
+import uuid
 
 
 def cut_video(input_file, segment_length=300, upload_queue=None, video_id=None):
-    if not os.path.exists(input_file):
-        raise FileNotFoundError(f"Input video file not found: {input_file}")
-    
     try:
-        # generate a video ID if not provided
+        # Generate a video ID if not provided
         if video_id is None:
-            video_id = f"video_{int(time.time())}"
+            video_id = f"video_{uuid.uuid4()}"
         
-        # loads the video
-        print(f"Loading video: {input_file}")
-        video = VideoFileClip(input_file)
+        # Convert UploadedFile to a file path for pymovie to read and cut
+        if hasattr(input_file, 'name') and not isinstance(input_file, str):
+            # Create a temporary file
+            temp_dir = tempfile.mkdtemp()
+            temp_path = os.path.join(temp_dir, input_file.name)
+            
+            st.write(f"Saving uploaded file to temporary location: {temp_path}")
+            
+            # Write the uploaded file to disk
+            with open(temp_path, "wb") as f:
+                f.write(input_file.getbuffer())
+            
+            # Use the temporary file path instead
+            file_path = temp_path
+        else:
+            # It's already a file path
+            file_path = input_file
+        
+        # Loads the video
+        st.write(f"Loading video: {file_path}")
+        video = VideoFileClip(file_path)
         duration = video.duration
-        print(f"Video duration: {duration} seconds")
+        st.write(f"Video duration: {duration} seconds")
         
-        # calculate # of segments
+        # Calculate # of segments
         num_segments = int(duration / segment_length) + (1 if duration % segment_length > 0 else 0)
-        print(f"Will create {num_segments} segments")
+        st.write(f"Will create {num_segments} segments")
         
         output_files = []
         
-        output_dir = "output_segments"
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
-        
-        # creates segments
+        # Creates segments
         for i in range(num_segments):
             start_time = i * segment_length
             
-            # uses remaining duration if last segment is shorter than 5mins
+            # Uses remaining duration if last segment is shorter than 5mins
             if i == num_segments - 1 and duration % segment_length > 0:
                 segment_duration = duration % segment_length
             else:
                 segment_duration = segment_length
             
-            # calculates end time
+            # Calculates end time
             end_time = min(start_time + segment_duration, duration)
             
-            print(f"Creating segment {i+1}/{num_segments}: {start_time}s to {end_time}s")
+            st.write(f"Creating segment {i+1}/{num_segments}: {start_time}s to {end_time}s")
+            input_file_name = os.path.basename(file_path)
             
-            output_file = os.path.join(output_dir, f"segment_{i:03d}.mp4")
+            output_file = os.path.join(f"{input_file_name}{i:03d}.mp4")
             subclip = video.subclip(start_time, end_time)
             
             subclip.write_videofile(
@@ -72,9 +86,19 @@ def cut_video(input_file, segment_length=300, upload_queue=None, video_id=None):
                 upload_queue.put(segment_info)
 
         video.close()
+        
+        # Clean up the temporary file if created
+        if 'temp_path' in locals():
+            try:
+                os.remove(temp_path)
+                os.rmdir(temp_dir)
+            except:
+                pass
+                
         return output_files
     
     except Exception as e:
+        st.error(f"Error in cut_video: {str(e)}")
         print(f"Error in cut_video: {str(e)}")
         raise
 
@@ -105,7 +129,7 @@ if __name__ == "__main__":
         upload_thread.start()
         
         # generate a video ID
-        video_id = f"video_{int(time.time())}"
+        video_id = f"video_{uuid.uuid4()}"
         
         # create 5-minute segments and add them to the upload queue
         segments = cut_video(
