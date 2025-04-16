@@ -15,55 +15,49 @@ def cut_video(input_file, segment_length=300, upload_queue=None, video_id=None):
         if video_id is None:
             video_id = f"video_{uuid.uuid4()}"
         
-        # Convert UploadedFile to a file path for pymovie to read and cut
+        # Handle Streamlit UploadedFile
         if hasattr(input_file, 'name') and not isinstance(input_file, str):
-            # Create a temporary file
             temp_dir = tempfile.mkdtemp()
             temp_path = os.path.join(temp_dir, input_file.name)
             
             st.write(f"Saving uploaded file to temporary location: {temp_path}")
-            
-            # Write the uploaded file to disk
             with open(temp_path, "wb") as f:
                 f.write(input_file.getbuffer())
             
-            # Use the temporary file path instead
             file_path = temp_path
         else:
-            # It's already a file path
             file_path = input_file
         
-        # Loads the video
+        # Load and process video
         st.write(f"Loading video: {file_path}")
         video = VideoFileClip(file_path)
         duration = video.duration
         st.write(f"Video duration: {duration} seconds")
         
-        # Calculate # of segments
         num_segments = int(duration / segment_length) + (1 if duration % segment_length > 0 else 0)
         st.write(f"Will create {num_segments} segments")
         
         output_files = []
         
-        # Creates segments
+        # Process segments and upload directly when possible
         for i in range(num_segments):
             start_time = i * segment_length
             
-            # Uses remaining duration if last segment is shorter than 5mins
             if i == num_segments - 1 and duration % segment_length > 0:
                 segment_duration = duration % segment_length
             else:
                 segment_duration = segment_length
             
-            # Calculates end time
             end_time = min(start_time + segment_duration, duration)
             
-            st.write(f"Creating segment {i+1}/{num_segments}: {start_time}s to {end_time}s")
-            input_file_name = os.path.basename(file_path)
+            st.write(f"Processing segment {i+1}/{num_segments}: {start_time}s to {end_time}s")
             
-            output_file = os.path.join(f"{input_file_name}{i:03d}.mp4")
+            # Create unique output filename
+            segment_filename = f"segment_{i:03d}_{video_id}.mp4"
+            output_file = os.path.join(temp_dir, segment_filename)
+            
+            # Create the segment
             subclip = video.subclip(start_time, end_time)
-            
             subclip.write_videofile(
                 output_file, 
                 codec='libx264',
@@ -87,11 +81,10 @@ def cut_video(input_file, segment_length=300, upload_queue=None, video_id=None):
 
         video.close()
         
-        # Clean up the temporary file if created
+        # Clean up
         if 'temp_path' in locals():
             try:
-                os.remove(temp_path)
-                os.rmdir(temp_dir)
+                os.remove(temp_path) 
             except:
                 pass
                 
