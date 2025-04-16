@@ -51,14 +51,13 @@ def extract_engaging_clips_ollama(transcript_json, num_clips=3, min_duration=30,
     # Create prompt for the Ollama model
     prompt = f"""
     Below is a transcript from a video. Identify the {num_clips} most engaging, 
-    interesting, or meaningful segments (at least {min_duration} - {max_duration} seconds for each segment) that would make excellent clips for Tiktok.
+    interesting, or meaningful segments (at least {min_duration} - {max_duration} seconds) that would make excellent clips for Tiktok (WITH ENOUGHT CONTEXT TO UNDERSTAND THE WORDS).
     
-    Look for segments that:
+    Look for segments that: 
     - Contain surprising, valuable, funny, entertaining, or controversial statements
     - Express strong opinions or emotions
     - Present key insights or memorable points
-    - Would work well as a standalone clip for social media
-    - Have a clear beginning and end (complete thoughts)
+    - WOULD WORK WELL AS A STANDALONE CLIP for social media WITH A CLEAR BEGINNING AND END
     
     For each segment, respond with the **EXACT** text from the transcript. Do not paraphrase or summarize, just exact quotes extracted.
     Format your response as:
@@ -269,7 +268,7 @@ def find_position_with_ngrams(words, ngram_index, n, find_last=False):
 if __name__ == "__main__":
     # Load the transcription JSON
     try:
-        with open('transcripts\segment_000_20250413210526.json', 'r') as file:
+        with open('transcripts\segment_000_20250414002344.json', 'r') as file:
             talk_about_life = json.load(file)
             
         # Run the extraction

@@ -79,7 +79,7 @@ def cut_video(input_file, segment_length=300, upload_queue=None, video_id=None):
         raise
 
 if __name__ == "__main__":
-    input_video_path = r"C:\Users\pierr\Downloads\Trying the BEST STREET FOOD in NYC CHINATOWN🥢🥮⋆✶.˚.mp4"
+    input_video_path = r"C:\Users\daoho\Downloads\READING YOUR CONFESSIONS FT. ALEX CONSANI.mp4"
     
     # check if file exists and print absolute path
     print(f"Checking for video file: {input_video_path}")

@@ -110,29 +110,29 @@ if __name__ == "__main__":
     # This would typically come from your database or previous processing step
     clips_to_extract = [
   {
-    "start_time": 0.11,
-    "end_time": 11.57,
-    "duration": 11.46,
-    "transcript": "Gas or pass Amber you can get a pap smear right there What OGYN That's a woman's annual",
-    "confidence": 0.31
+    "start_time": 117.95,
+    "end_time": 123.59,
+    "duration": 5.64,
+    "transcript": "I hate my grandma I genuinely wish nothing but the worst for her I think that's fucked",
+    "confidence": 0.15
   },
   {
-    "start_time": 57.2,
-    "end_time": 87.03,
-    "duration": 29.83,
-    "transcript": "Our motherland is Korea but we do love some Chinese food I love this place Ambiance These are my people Oh that was kind of funny need a whole chicken You nut chestnuts from that lady over there How do you love chestnuts I love peeled chestnuts because I love chestnuts but I hate peeling them So nuts Mom walked away for half a second and comes back with",
-    "confidence": 0.8
+    "start_time": 189.67,
+    "end_time": 200.65,
+    "duration": 10.98,
+    "transcript": "I was 6 years old and I covered my toilet walls and shit My mom asked if I needed help with pooping Keep in mind I was 6 and I said no mom I'm good I went to school and my mom found out about it when I got home The poop was under my",
+    "confidence": 0.29
   },
   {
-    "start_time": 93.79,
-    "end_time": 152.08,
-    "duration": 58.29,
-    "transcript": "This is probably the most famous dumpling spot in all of Chinatown If you look up where to buy your dumplings this is the first thing that pops up Their whole thing is that you can get 15 dumplings for $5 so we're going to get their famous fried pork and chive dumplings Yes I've never had it I'm so excited So let's open it up Here's our dumplings Do you want some sauce on it Just douse it with the soy sauce don't drop it Don't drop it I'm I'm going for $5 You know what amazed me is like I put the order in She brought it out to me of seconds Cheers cheers Oh my God I've got a napkins That is delicious I mean this is a bargain for $5 and they're really juicy and I love the little lady who smiled and like and took my order She was just so cute I'll say service 10 out of 10 juiciness 10 out of 10 bang for your buck 10 out of 10 100 out of 10 Can't buy this at a store for",
+    "start_time": 235.88,
+    "end_time": 281.19,
+    "duration": 45.31,
+    "transcript": "When I was younger I was in my room and one day asked my mom and dad something So I walked into the room and saw my mom sucking on my dad's da da da So they I feel like this is a video from 2014 So I'm so invested So they instantly froze and my mom sat up My dad said Sorry mommy's just sucking on my thumb That's how small it was because I got stung by a wasp And then I said I thought she was sucking on your This is traum this is trauma right Yeah I don't wanna read that one Yeah I don't wanna comment No comments What are you confessing though I'm gay I'm gay I pooped like y'all are lame I used to help out at a nursing home This old Russian lady would relate the same tale over and over",
     "confidence": 0.8
   }
 ]
     
-    s3_key = "video_1744592340/segment_000.mp4"
+    s3_key = "video_1744604377/segment_000.mp4"
     
     # Extract the clips
     extracted_clips = extract_clips_from_s3(clips_to_extract, s3_key)
