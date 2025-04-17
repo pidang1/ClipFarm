@@ -67,4 +67,4 @@ def transcribe_video(media_uri):
     return transcript_data
 
 
-transcribe_video("s3://uploaded-clips/video_1744604377/segment_000.mp4")
+# transcribe_video("s3://uploaded-clips/video_1744604377/segment_000.mp4")

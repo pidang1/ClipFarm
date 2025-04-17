@@ -172,32 +172,32 @@ def add_captions_to_video(video_path, transcript_data):
         }
 
 # Example usage
-if __name__ == "__main__":
-    # Download the video from S3 (you'll need to implement this)
-    s3_uri = "s3://clip-farm-results/clips/segment_000_clip_1_117.95-123.59.mp4"
-    local_video_path = f"downloaded_videos/captioned_clip_{s3_uri.split('/')[-1]}"
+# if __name__ == "__main__":
+#     # Download the video from S3 (you'll need to implement this)
+#     s3_uri = "s3://clip-farm-results/clips/segment_000_clip_1_117.95-123.59.mp4"
+#     local_video_path = f"downloaded_videos/captioned_clip_{s3_uri.split('/')[-1]}"
     
-    # Ensure the directory exists
-    os.makedirs(os.path.dirname(local_video_path), exist_ok=True)
+#     # Ensure the directory exists
+#     os.makedirs(os.path.dirname(local_video_path), exist_ok=True)
     
-    s3_client = boto3.client('s3', 
-                          aws_access_key_id=AWS_ACCESS_KEY, 
-                          aws_secret_access_key=AWS_SECRET_ACCESS_KEY)
-    bucket_name = s3_uri.split("/")[2]
-    object_key = "/".join(s3_uri.split("/")[3:])
+#     s3_client = boto3.client('s3', 
+#                           aws_access_key_id=AWS_ACCESS_KEY, 
+#                           aws_secret_access_key=AWS_SECRET_ACCESS_KEY)
+#     bucket_name = s3_uri.split("/")[2]
+#     object_key = "/".join(s3_uri.split("/")[3:])
     
-    try:
-        s3_client.download_file(bucket_name, object_key, local_video_path)
-        print(f"Downloaded video to {local_video_path}")
-    except Exception as e:
-        print(f"Error downloading video: {e}")
-        # If you already have the video locally, you can skip this
+#     try:
+#         s3_client.download_file(bucket_name, object_key, local_video_path)
+#         print(f"Downloaded video to {local_video_path}")
+#     except Exception as e:
+#         print(f"Error downloading video: {e}")
+#         # If you already have the video locally, you can skip this
     
-    # Transcribe the video
-    transcript_data = transcribe_video(s3_uri)
+#     # Transcribe the video
+#     transcript_data = transcribe_video(s3_uri)
     
-    if transcript_data:
-        # Add captions to the video
-        result = add_captions_to_video(local_video_path, transcript_data)
-        print("Caption process complete!")
-        print(result)
+#     if transcript_data:
+#         # Add captions to the video
+#         result = add_captions_to_video(local_video_path, transcript_data)
+#         print("Caption process complete!")
+#         print(result)

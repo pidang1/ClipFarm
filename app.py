@@ -1,6 +1,6 @@
 import streamlit as st
 import time
-from datetime import datetime
+import datetime
 import pandas as pd
 from preprocess import cut_video
 from queue_upload import upload_worker
@@ -12,6 +12,9 @@ import boto3
 import json
 import io
 from dotenv import load_dotenv
+import tempfile
+from cut_clip import extract_clips_from_s3
+from captions import add_captions_to_video, generate_srt_from_transcript, format_srt_time
 
 
 load_dotenv()
@@ -22,8 +25,6 @@ st.set_page_config(
     page_icon="🎬",
     layout="wide"
 )
-
-
 
 def process_best_segments_json(json_data):
     """Extract relevant information from the best-segments JSON data"""
@@ -135,7 +136,6 @@ s3_client = boto3.client(
 def generate_video_for_best_segment(segment_data, source_video_uri, segment_index):
     """Generate a video for a specific segment using the original video"""
     # Create a unique key for this generation task
-    
     if source_video_uri not in st.session_state.video_generation_progress:
         st.session_state.video_generation_progress[source_video_uri] = 0
     
@@ -145,27 +145,6 @@ def generate_video_for_best_segment(segment_data, source_video_uri, segment_inde
     duration = segment_data.get('duration', 0)
     transcript = segment_data.get('transcript', '')
     
-    s3_parts = source_video_uri.split('://')
-    if len(s3_parts) != 2:
-        status_placeholder = st.empty()
-        status_placeholder.error(f"Invalid S3 URI format: {source_video_uri}")
-        return
-    
-    s3_path = s3_parts[1].split('/', 1)
-    if len(s3_path) != 2:
-        status_placeholder = st.empty()
-        status_placeholder.error(f"Invalid S3 path format: {source_video_uri}")
-        return
-    
-    s3_bucket = s3_path[0]
-    s3_key = s3_path[1]
-    video_id = s3_key.split('.')[0]
-    
-    # Local file paths
-    temp_dir = "/tmp"
-    original_video_path = f"{temp_dir}/{video_id}.mp4"
-    output_video_path = f"{temp_dir}/clip_{video_id}_segment_{segment_index}_{start_time:.2f}_{end_time:.2f}.mp4"
-    
     # Progress placeholders
     progress_placeholder = st.empty()
     status_placeholder = st.empty()
@@ -173,94 +152,285 @@ def generate_video_for_best_segment(segment_data, source_video_uri, segment_inde
     
     # Initialize progress
     progress_placeholder.progress(0)
-    status_placeholder.info(f"Downloading original video from S3: {s3_bucket}/{video_id}")
+    
+    # Parse the S3 URI
+    s3_parts = source_video_uri.split('://')
+    if len(s3_parts) != 2:
+        status_placeholder.error(f"Invalid S3 URI format: {source_video_uri}")
+        return
+    
+    s3_path = s3_parts[1].split('/', 1)
+    if len(s3_path) != 2:
+        status_placeholder.error(f"Invalid S3 path format: {source_video_uri}")
+        return
+    
+    s3_bucket = s3_path[0]
+    s3_key = s3_path[1]
+    
+    status_placeholder.info(f"Processing video segment from S3: {s3_bucket}/{s3_key}")
     
     try:
-        st.write(f"Downloading original video from S3: {video_id}")
-        # Download the original video from S3
+        # Create a list with the single segment we want to extract
+        clips_to_extract = [{
+            "start_time": start_time,
+            "end_time": end_time,
+            "duration": duration,
+            "transcript": transcript,
+            "confidence": segment_data.get('confidence', 0)
+        }]
+        
+        # Update progress to indicate we're starting extraction
+        progress = 0.1  # 10%
+        st.session_state.video_generation_progress[source_video_uri] = progress
+        progress_placeholder.progress(progress)
+        
+        # First, download the original video
+        temp_dir = tempfile.gettempdir()
+        video_id = os.path.basename(s3_key).split('.')[0]
+        original_video_path = os.path.join(temp_dir, f"{video_id}.mp4")
+        
+        status_placeholder.info(f"Downloading original video from S3: {s3_bucket}/{s3_key}")
         s3_client.download_file(
-            Bucket="uploaded-clips",
-            Key=video_id,
+            Bucket=s3_bucket,
+            Key=s3_key,
             Filename=original_video_path
         )
         
-        # Update progress after successful download
+        # Update progress after download
         progress = 0.3  # 30%
         st.session_state.video_generation_progress[source_video_uri] = progress
         progress_placeholder.progress(progress)
         
-        status_placeholder.info(f"Trimming video from {start_time:.2f}s to {end_time:.2f}s...")
+        # Extract clip using MoviePy
+        status_placeholder.info(f"Extracting clip from {start_time:.2f}s to {end_time:.2f}s...")
         
-        # Here you would use FFmpeg to trim the video
-        # For example:
-        # import subprocess
-        # subprocess.run([
-        #     'ffmpeg', '-i', original_video_path, 
-        #     '-ss', str(start_time), '-to', str(end_time),
-        #     '-c:v', 'copy', '-c:a', 'copy',
-        #     output_video_path
-        # ])
+        # Generate unique filenames
+        clip_filename = f"{video_id}_clip_{segment_index}_{start_time:.2f}-{end_time:.2f}.mp4"
+        clip_path = os.path.join(temp_dir, clip_filename)
         
-        # Since we're not actually running FFmpeg, simulate progress
-        for i in range(30, 60):
-            progress = i / 100
-            st.session_state.video_generation_progress[source_video_uri] = progress
-            progress_placeholder.progress(progress)
-            time.sleep(0.05)
-        
-        status_placeholder.info("Processing video and adding captions...")
-        
-        # Simulate processing
-        for i in range(60, 90):
-            progress = i / 100
-            st.session_state.video_generation_progress[source_video_uri] = progress
-            progress_placeholder.progress(progress)
-            time.sleep(0.05)
-        
-        status_placeholder.info("Finalizing video for download...")
-        
-        # Simulate finalizing
-        for i in range(90, 101):
-            progress = i / 100
-            st.session_state.video_generation_progress[source_video_uri] = progress
-            progress_placeholder.progress(progress)
-            time.sleep(0.05)
-        
-        # Mark as complete
-        st.session_state.video_generation_progress[source_video_uri] = 1.0
-        progress_placeholder.progress(1.0)
-        
-        # Store in session state that this video has been generated
-        if video_id not in st.session_state.generated_videos:
-            st.session_state.generated_videos[video_id] = []
-        
-        # Create a unique filename for this segment
-        filename = f"clip_{video_id}_segment_{segment_index}_{start_time:.2f}_{end_time:.2f}.mp4"
-        
-        # Add to generated videos
-        st.session_state.generated_videos[video_id].append({
-            'segment_index': segment_index,
-            'start_time': start_time,
-            'end_time': end_time,
-            'transcript': transcript,
-            'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-            'filename': filename
-        })
-        
-        status_placeholder.success(f"Video segment ({duration:.2f}s) successfully generated!")
-        
-        # In a real implementation, you would read the processed file for download
-        # For now, let's read the original downloaded file since we didn't actually process it
-        with open(original_video_path, 'rb') as f:
-            video_bytes = f.read()
-            download_placeholder.download_button(
-                label="Download Generated Clip",
-                data=io.BytesIO(video_bytes),
-                file_name=filename,
-                mime="video/mp4",
-                key=f"download_segment_{segment_index}_{start_time:.2f}"
+        from moviepy.editor import VideoFileClip
+        try:
+            # Load the video
+            video = VideoFileClip(original_video_path)
+            
+            # Extract the subclip
+            subclip = video.subclip(start_time, end_time)
+            
+            # Write the clip to file
+            subclip.write_videofile(
+                clip_path,
+                codec='libx264',
+                audio_codec='aac',
+                temp_audiofile=os.path.join(temp_dir, "temp-audio.m4a"),
+                remove_temp=True,
+                fps=video.fps,
+                preset='fast'
             )
-        
+            
+            # Close clips to free memory
+            subclip.close()
+            video.close()
+            
+            # Update progress after extraction
+            progress = 0.5  # 50%
+            st.session_state.video_generation_progress[source_video_uri] = progress
+            progress_placeholder.progress(progress)
+            
+            # Upload extracted clip to S3
+            status_placeholder.info(f"Uploading extracted clip to S3...")
+            
+            clip_s3_key = clip_filename
+            s3_client.upload_file(
+                clip_path,
+                "clip-farm-results",
+                clip_s3_key
+            )
+            
+            # Create clip info like what would be returned by extract_clips_from_s3
+            clip_info = {
+                "source_video": s3_key,
+                "clip_number": segment_index,
+                "start_time": start_time,
+                "end_time": end_time,
+                "duration": duration,
+                "transcript": transcript,
+                "s3_uri": f"s3://clip-farm-results/{clip_s3_key}",
+                "filename": clip_filename
+            }
+            
+            # Update progress after upload
+            progress = 0.6  # 60%
+            st.session_state.video_generation_progress[source_video_uri] = progress
+            progress_placeholder.progress(progress)
+            
+            # Now proceed with captioning
+            status_placeholder.info("Creating caption file...")
+            
+            # Create directories if they don't exist
+            os.makedirs("transcripts", exist_ok=True)
+            os.makedirs("captioned_videos", exist_ok=True)
+            
+            # Create a simplified SRT file directly from the transcript text
+            timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+            base_name = os.path.splitext(os.path.basename(clip_path))[0]
+            srt_path = os.path.join("transcripts", f"{base_name}_{timestamp}.srt")
+            
+            # Create a simplified SRT file manually
+            with open(srt_path, 'w', encoding='utf-8') as f:
+                # Split transcript into approximately 10-word chunks
+                words = transcript.split()
+                chunks = []
+                chunk = []
+                
+                for word in words:
+                    chunk.append(word)
+                    if len(chunk) >= 10 or word.endswith(('.', '!', '?')):
+                        chunks.append(' '.join(chunk))
+                        chunk = []
+                
+                # Add any remaining words as a chunk
+                if chunk:
+                    chunks.append(' '.join(chunk))
+                
+                # Calculate time per chunk
+                if len(chunks) > 0:
+                    time_per_chunk = duration / len(chunks)
+                else:
+                    time_per_chunk = duration
+                    chunks = [transcript]  # Use full transcript as one chunk
+                
+                # Write SRT format
+                for i, chunk_text in enumerate(chunks):
+                    chunk_start = i * time_per_chunk
+                    chunk_end = (i + 1) * time_per_chunk
+                    
+                    start_str = format_srt_time(chunk_start)
+                    end_str = format_srt_time(chunk_end)
+                    
+                    f.write(f"{i+1}\n")
+                    f.write(f"{start_str} --> {end_str}\n")
+                    f.write(f"{chunk_text}\n\n")
+            
+            # Update progress
+            progress = 0.7  # 70%
+            st.session_state.video_generation_progress[source_video_uri] = progress
+            progress_placeholder.progress(progress)
+            
+            # Add captions to the video using FFmpeg
+            status_placeholder.info("Adding captions to the video...")
+            output_dir = "captioned_videos"
+            output_video_path = os.path.join(output_dir, f"{base_name}_captioned_{timestamp}.mp4")
+            
+            # Call FFmpeg directly to add captions
+            import subprocess
+            
+            # Convert Windows paths to properly escaped paths for FFmpeg
+            clip_path_fixed = clip_path.replace('\\', '/')
+            srt_path_fixed = srt_path.replace('\\', '/')
+            output_video_path_fixed = output_video_path.replace('\\', '/')
+            
+            # FFmpeg command with proper path escaping
+            cmd = [
+                'ffmpeg',
+                '-i', clip_path_fixed,
+                '-vf', f"subtitles='{srt_path_fixed}':force_style='FontName=Arial,FontSize=20,Bold=1,PrimaryColour=&H00FFFFFF,OutlineColour=&H50000000,BackColour=&H50000000,BorderStyle=1,Outline=1,Shadow=1,Alignment=10'",
+                '-c:a', 'copy',
+                '-y',
+                output_video_path_fixed
+            ]
+            
+            # Run the command
+            try:
+                result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                
+                if result.returncode != 0:
+                    status_placeholder.warning(f"Warning: FFmpeg error when adding captions. Using original clip instead.")
+                    captioned_video_path = clip_path
+                else:
+                    captioned_video_path = output_video_path
+                    
+            except Exception as e:
+                status_placeholder.warning(f"Warning: Could not add captions: {str(e)}. Using original clip instead.")
+                captioned_video_path = clip_path
+            
+            # Update progress
+            progress = 0.9  # 90%
+            st.session_state.video_generation_progress[source_video_uri] = progress
+            progress_placeholder.progress(progress)
+            
+            # Upload the captioned video back to S3
+            captioned_filename = os.path.basename(captioned_video_path)
+            captioned_s3_key = f"captioned/{captioned_filename}"
+            
+            s3_client.upload_file(
+                captioned_video_path,
+                "clip-farm-results",
+                captioned_s3_key
+            )
+            
+            # Create S3 URI for the captioned video
+            captioned_s3_uri = f"s3://clip-farm-results/{captioned_s3_key}"
+            s3_clip_uri = f"s3://clip-farm-results/{clip_s3_key}"
+            
+            # Mark as complete
+            st.session_state.video_generation_progress[source_video_uri] = 1.0
+            progress_placeholder.progress(1.0)
+            
+            # Store in session state that this video has been generated
+            video_id = os.path.basename(s3_key).split('.')[0]
+            if video_id not in st.session_state.generated_videos:
+                st.session_state.generated_videos[video_id] = []
+            
+            # Add to generated videos
+            st.session_state.generated_videos[video_id].append({
+                'segment_index': segment_index,
+                'start_time': start_time,
+                'end_time': end_time,
+                'transcript': transcript,
+                'timestamp': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'filename': captioned_filename,
+                's3_uri': captioned_s3_uri,
+                'uncaptioned_s3_uri': s3_clip_uri
+            })
+            
+            status_placeholder.success(f"Video segment ({duration:.2f}s) successfully generated with captions!")
+            
+            # Provide both S3 URLs for reference
+            st.write(f"Original clip: {s3_clip_uri}")
+            st.write(f"Captioned clip: {captioned_s3_uri}")
+            
+            # Provide download button for the captioned video
+            try:
+                with open(captioned_video_path, 'rb') as f:
+                    video_bytes = f.read()
+                    download_placeholder.download_button(
+                        label="Download Captioned Clip",
+                        data=io.BytesIO(video_bytes),
+                        file_name=captioned_filename,
+                        mime="video/mp4",
+                        key=f"download_captioned_segment_{segment_index}_{start_time:.2f}"
+                    )
+                    
+                # Clean up the temporary files
+                if os.path.exists(original_video_path):
+                    os.remove(original_video_path)
+                if os.path.exists(clip_path) and clip_path != captioned_video_path:
+                    os.remove(clip_path)
+                if os.path.exists(srt_path):
+                    os.remove(srt_path)
+                if os.path.exists(captioned_video_path):
+                    os.remove(captioned_video_path)
+                
+            except Exception as e:
+                download_placeholder.error(f"Could not prepare download: {str(e)}")
+                download_placeholder.info(f"Access the captioned clip directly from S3: {captioned_s3_uri}")
+                
+        except Exception as e:
+            status_placeholder.error(f"Error processing video: {str(e)}")
+            if os.path.exists(original_video_path):
+                os.remove(original_video_path)
+            raise e
+            
     except Exception as e:
         status_placeholder.error(f"Error generating video: {str(e)}")
         progress_placeholder.progress(0)
@@ -576,7 +746,6 @@ with tab2:
             # Parse the JSON content
             best_segments = json.loads(response['Body'].read().decode('utf-8'))
             
-            st.write(best_segments)
             
             # Process and add to our list
             best_segments_data.append({
@@ -604,6 +773,7 @@ with tab2:
                     # Display each segment with controls
                     for i, segment in enumerate(segments):
                         with st.container():
+                            st.write(segment)
                             # Create columns for better layout
                             col1, col2 = st.columns([3, 1])
                             
