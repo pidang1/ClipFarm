@@ -53,7 +53,7 @@ def upload_worker(queue):
         segment_index = file_info.get('segment_index', 0)
         video_id = file_info.get('video_id', 'unknown')
         
-        object_name = f"{video_id}/segment_{segment_index:03d}.mp4"
+        object_name = f"{video_id}_segment_{segment_index:03d}.mp4"
         
         # uploads the file
         upload_clip_to_s3(file_path, object_name)
