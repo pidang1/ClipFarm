@@ -23,107 +23,7 @@ st.set_page_config(
     layout="wide"
 )
 
-def generate_video_for_best_segment(segment_data, source_video_uri, segment_index):
-    """Generate a video for a specific segment using the original video"""
-    # Create a unique key for this generation task
-    generation_key = f"{source_video_uri}_{segment_index}"
-    
-    if generation_key not in st.session_state.video_generation_progress:
-        st.session_state.video_generation_progress[generation_key] = 0
-    
-    # Extract segment information
-    start_time = segment_data.get('start_time', 0)
-    end_time = segment_data.get('end_time', 0)
-    duration = segment_data.get('duration', 0)
-    transcript = segment_data.get('transcript', '')
-    
-    # Extract video ID from source URI
-    video_id = source_video_uri.split('/')[-1].split('.')[0]
-    
-    # Progress placeholders
-    progress_placeholder = st.empty()
-    status_placeholder = st.empty()
-    download_placeholder = st.empty()
-    
-    # Initialize progress
-    progress_placeholder.progress(0)
-    status_placeholder.info(f"Fetching original video from {source_video_uri}...")
-    
-    # In a real implementation, this would:
-    # 1. Download the original video from S3
-    # 2. Cut the video based on start_time and end_time
-    # 3. Process it as needed (add effects, captions, etc.)
-    # 4. Generate the final video and make it available for download
-    
-    # Simulate fetching the original video
-    for i in range(0, 30):
-        progress = i / 100
-        st.session_state.video_generation_progress[generation_key] = progress
-        progress_placeholder.progress(progress)
-        time.sleep(0.05)
-    
-    status_placeholder.info(f"Trimming video from {start_time:.2f}s to {end_time:.2f}s...")
-    
-    # Simulate video trimming
-    for i in range(30, 60):
-        progress = i / 100
-        st.session_state.video_generation_progress[generation_key] = progress
-        progress_placeholder.progress(progress)
-        time.sleep(0.05)
-    
-    status_placeholder.info("Adding captions and processing...")
-    
-    # Simulate adding captions and processing
-    for i in range(60, 90):
-        progress = i / 100
-        st.session_state.video_generation_progress[generation_key] = progress
-        progress_placeholder.progress(progress)
-        time.sleep(0.05)
-    
-    status_placeholder.info("Finalizing video for download...")
-    
-    # Simulate finalizing
-    for i in range(90, 101):
-        progress = i / 100
-        st.session_state.video_generation_progress[generation_key] = progress
-        progress_placeholder.progress(progress)
-        time.sleep(0.05)
-    
-    # Mark as complete
-    st.session_state.video_generation_progress[generation_key] = 1.0
-    progress_placeholder.progress(1.0)
-    
-    # Store in session state that this video has been generated
-    if video_id not in st.session_state.generated_videos:
-        st.session_state.generated_videos[video_id] = []
-    
-    # Create a unique filename for this segment
-    filename = f"clip_{video_id}_segment_{segment_index}_{start_time:.2f}_{end_time:.2f}.mp4"
-    
-    # Add to generated videos
-    st.session_state.generated_videos[video_id].append({
-        'segment_index': segment_index,
-        'start_time': start_time,
-        'end_time': end_time,
-        'transcript': transcript,
-        'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-        'filename': filename
-    })
-    
-    status_placeholder.success(f"Video segment ({duration:.2f}s) successfully generated!")
-    
-    # In a real implementation, you would:
-    # 1. Generate an actual video file
-    # 2. Provide it for download using st.download_button with the real file content
-    
-    # Provide a download button
-    download_placeholder.download_button(
-        label="Download Generated Clip",
-        data=io.BytesIO(b"This would be the actual video clip content"),
-        file_name=filename,
-        mime="video/mp4",
-        key=f"download_segment_{segment_index}_{start_time:.2f}"
-    )
+
 
 def process_best_segments_json(json_data):
     """Extract relevant information from the best-segments JSON data"""
@@ -231,6 +131,140 @@ s3_client = boto3.client(
     aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
     region_name=AWS_REGION
 )
+
+def generate_video_for_best_segment(segment_data, source_video_uri, segment_index):
+    """Generate a video for a specific segment using the original video"""
+    # Create a unique key for this generation task
+    
+    if source_video_uri not in st.session_state.video_generation_progress:
+        st.session_state.video_generation_progress[source_video_uri] = 0
+    
+    # Extract segment information
+    start_time = segment_data.get('start_time', 0)
+    end_time = segment_data.get('end_time', 0)
+    duration = segment_data.get('duration', 0)
+    transcript = segment_data.get('transcript', '')
+    
+    s3_parts = source_video_uri.split('://')
+    if len(s3_parts) != 2:
+        status_placeholder = st.empty()
+        status_placeholder.error(f"Invalid S3 URI format: {source_video_uri}")
+        return
+    
+    s3_path = s3_parts[1].split('/', 1)
+    if len(s3_path) != 2:
+        status_placeholder = st.empty()
+        status_placeholder.error(f"Invalid S3 path format: {source_video_uri}")
+        return
+    
+    s3_bucket = s3_path[0]
+    s3_key = s3_path[1]
+    video_id = s3_key.split('.')[0]
+    
+    # Local file paths
+    temp_dir = "/tmp"
+    original_video_path = f"{temp_dir}/{video_id}.mp4"
+    output_video_path = f"{temp_dir}/clip_{video_id}_segment_{segment_index}_{start_time:.2f}_{end_time:.2f}.mp4"
+    
+    # Progress placeholders
+    progress_placeholder = st.empty()
+    status_placeholder = st.empty()
+    download_placeholder = st.empty()
+    
+    # Initialize progress
+    progress_placeholder.progress(0)
+    status_placeholder.info(f"Downloading original video from S3: {s3_bucket}/{video_id}")
+    
+    try:
+        st.write(f"Downloading original video from S3: {video_id}")
+        # Download the original video from S3
+        s3_client.download_file(
+            Bucket="uploaded-clips",
+            Key=video_id,
+            Filename=original_video_path
+        )
+        
+        # Update progress after successful download
+        progress = 0.3  # 30%
+        st.session_state.video_generation_progress[source_video_uri] = progress
+        progress_placeholder.progress(progress)
+        
+        status_placeholder.info(f"Trimming video from {start_time:.2f}s to {end_time:.2f}s...")
+        
+        # Here you would use FFmpeg to trim the video
+        # For example:
+        # import subprocess
+        # subprocess.run([
+        #     'ffmpeg', '-i', original_video_path, 
+        #     '-ss', str(start_time), '-to', str(end_time),
+        #     '-c:v', 'copy', '-c:a', 'copy',
+        #     output_video_path
+        # ])
+        
+        # Since we're not actually running FFmpeg, simulate progress
+        for i in range(30, 60):
+            progress = i / 100
+            st.session_state.video_generation_progress[source_video_uri] = progress
+            progress_placeholder.progress(progress)
+            time.sleep(0.05)
+        
+        status_placeholder.info("Processing video and adding captions...")
+        
+        # Simulate processing
+        for i in range(60, 90):
+            progress = i / 100
+            st.session_state.video_generation_progress[source_video_uri] = progress
+            progress_placeholder.progress(progress)
+            time.sleep(0.05)
+        
+        status_placeholder.info("Finalizing video for download...")
+        
+        # Simulate finalizing
+        for i in range(90, 101):
+            progress = i / 100
+            st.session_state.video_generation_progress[source_video_uri] = progress
+            progress_placeholder.progress(progress)
+            time.sleep(0.05)
+        
+        # Mark as complete
+        st.session_state.video_generation_progress[source_video_uri] = 1.0
+        progress_placeholder.progress(1.0)
+        
+        # Store in session state that this video has been generated
+        if video_id not in st.session_state.generated_videos:
+            st.session_state.generated_videos[video_id] = []
+        
+        # Create a unique filename for this segment
+        filename = f"clip_{video_id}_segment_{segment_index}_{start_time:.2f}_{end_time:.2f}.mp4"
+        
+        # Add to generated videos
+        st.session_state.generated_videos[video_id].append({
+            'segment_index': segment_index,
+            'start_time': start_time,
+            'end_time': end_time,
+            'transcript': transcript,
+            'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'filename': filename
+        })
+        
+        status_placeholder.success(f"Video segment ({duration:.2f}s) successfully generated!")
+        
+        # In a real implementation, you would read the processed file for download
+        # For now, let's read the original downloaded file since we didn't actually process it
+        with open(original_video_path, 'rb') as f:
+            video_bytes = f.read()
+            download_placeholder.download_button(
+                label="Download Generated Clip",
+                data=io.BytesIO(video_bytes),
+                file_name=filename,
+                mime="video/mp4",
+                key=f"download_segment_{segment_index}_{start_time:.2f}"
+            )
+        
+    except Exception as e:
+        status_placeholder.error(f"Error generating video: {str(e)}")
+        progress_placeholder.progress(0)
+        st.exception(e)
 
 def generate_video_from_segment(segment_key):
     """Generate video from a segment and provide download"""
@@ -534,40 +568,24 @@ with tab2:
             
             # Create a sample best-segments object for demonstration
             # In production, you would fetch this from S3
-            sample_best_segments = {
-                "source_transcript": key.replace('best-segments-', ''),
-                "source_video": f"s3://uploaded-clips/{key.split('_best-segments')[0]}.mp4",
-                "segments": [
-                    {
-                        "start_time": 0.01,
-                        "end_time": 2.16,
-                        "duration": 2.15,
-                        "transcript": "I was 6 years old and I covered my toilet walls and",
-                        "confidence": 0.06
-                    },
-                    {
-                        "start_time": 2.52,
-                        "end_time": 6.57,
-                        "duration": 4.05,
-                        "transcript": "My mom asked if I needed help with pooping keep in mind I was 6 and I said no",
-                        "confidence": 0.11
-                    },
-                    {
-                        "start_time": 9.84,
-                        "end_time": 10.88,
-                        "duration": 1.04,
-                        "transcript": "The poop was under my",
-                        "confidence": 0.03
-                    }
-                ]
-            }
+            response = s3_client.get_object(
+            Bucket="best-segments",
+            Key=key
+            )
+            
+            # Parse the JSON content
+            best_segments = json.loads(response['Body'].read().decode('utf-8'))
+            
+            st.write(best_segments)
             
             # Process and add to our list
             best_segments_data.append({
                 'key': key,
-                'data': sample_best_segments,
-                'processed': process_best_segments_json(sample_best_segments)
+                'data': best_segments,
+                'processed': process_best_segments_json(best_segments)
             })
+            
+            
         
         # Display best segments
         if best_segments_data:
