@@ -15,6 +15,7 @@ from dotenv import load_dotenv
 import tempfile
 from cut_clip import extract_clips_from_s3
 from captions import add_captions_to_video, generate_srt_from_transcript, format_srt_time
+import subprocess
 
 
 load_dotenv()
@@ -321,8 +322,7 @@ def generate_video_for_best_segment(segment_data, source_video_uri, segment_inde
             output_dir = "captioned_videos"
             output_video_path = os.path.join(output_dir, f"{base_name}_captioned_{timestamp}.mp4")
             
-            # Call FFmpeg directly to add captions
-            import subprocess
+            
             
             # Convert Windows paths to properly escaped paths for FFmpeg
             clip_path_fixed = clip_path.replace('\\', '/')
@@ -434,6 +434,81 @@ def generate_video_for_best_segment(segment_data, source_video_uri, segment_inde
     except Exception as e:
         status_placeholder.error(f"Error generating video: {str(e)}")
         progress_placeholder.progress(0)
+        st.exception(e)
+
+def delete_best_segment(segment_data, source_video_uri, segment_index, json_key):
+    """Delete a segment from the best segments list"""
+    # Progress placeholders
+    status_placeholder = st.empty()
+    
+    # Parse the S3 URI
+    s3_parts = source_video_uri.split('://')
+    if len(s3_parts) != 2:
+        status_placeholder.error(f"Invalid S3 URI format: {source_video_uri}")
+        return
+    
+    s3_path = s3_parts[1].split('/', 1)
+    if len(s3_path) != 2:
+        status_placeholder.error(f"Invalid S3 path format: {source_video_uri}")
+        return
+    
+    s3_bucket = s3_path[0]
+    s3_key = s3_path[1]
+    
+    # Extract a readable video ID from the source video URI
+    video_id = s3_key.split('.')[0]
+    
+    try:
+        status_placeholder.info(f"Deleting segment {segment_index+1} for video {video_id}...")
+        
+        # Fetch the existing JSON
+        try:
+            response = s3_client.get_object(
+                Bucket="best-segments",
+                Key=json_key
+            )
+            
+            # Parse the existing JSON
+            best_segments = json.loads(response['Body'].read().decode('utf-8'))
+            
+            # Remove the segment at the specified index
+            if 'segments' in best_segments and len(best_segments['segments']) > segment_index:
+                # Store the segment info before deletion for confirmation message
+                deleted_segment = best_segments['segments'][segment_index]
+                
+                # Remove the segment
+                best_segments['segments'].pop(segment_index)
+                
+                # Upload the updated JSON back to S3
+                s3_client.put_object(
+                    Bucket="best-segments",
+                    Key=json_key,
+                    Body=json.dumps(best_segments, indent=2),
+                    ContentType='application/json'
+                )
+                
+                # If any generated videos exist for this segment, delete them too
+                if video_id in st.session_state.generated_videos:
+                    # Filter generated videos to exclude the deleted segment
+                    st.session_state.generated_videos[video_id] = [
+                        video for video in st.session_state.generated_videos[video_id]
+                        if video.get('segment_index') != segment_index
+                    ]
+                
+                status_placeholder.success(f"Successfully deleted segment {segment_index+1}: {deleted_segment['start_time']:.2f}s - {deleted_segment['end_time']:.2f}s")
+                
+                # Force refresh of S3 contents
+                fetch_s3_contents()
+                
+            else:
+                status_placeholder.error(f"Segment index {segment_index} not found in the segments list.")
+            
+        except Exception as e:
+            status_placeholder.error(f"Error fetching or updating segments JSON: {str(e)}")
+            st.exception(e)
+            
+    except Exception as e:
+        status_placeholder.error(f"Error deleting segment: {str(e)}")
         st.exception(e)
 
 def generate_video_from_segment(segment_key):
@@ -598,52 +673,8 @@ def preprocess_and_upload(file):
     # Schedule S3 fetch 45 seconds after upload completes
     schedule_s3_fetch(45)
     
-    # Mock video metadata
-    video_data = {
-        "id": datetime.now().strftime("%Y%m%d_%H%M%S"),
-        "filename": "file_name",
-        "upload_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "file_size_mb": 15.7,  # Mock file size
-        "status": "processed",
-        "path": f"mock_path/mock_path"
-    }
     
-    # Mock transcript data (WE WILL GET THIS WORKING ACTUALLY TRUSTTT)
-    video_data["transcript"] = [
-        {"start_time": 0.0, "end_time": 5.2, "text": "Welcome to this video about clip farming."},
-        {"start_time": 5.5, "end_time": 10.8, "text": "Today we'll explore how to automatically find the most engaging parts of your content."},
-        {"start_time": 11.2, "end_time": 17.5, "text": "This technology can save content creators hours of editing time."},
-        {"start_time": 18.0, "end_time": 25.3, "text": "The key is in analyzing speech patterns, sentiment, and audience reactions."},
-        {"start_time": 26.0, "end_time": 35.7, "text": "Let me show you an exciting example of how this works in practice!"},
-        {"start_time": 36.0, "end_time": 45.5, "text": "As you can see, the algorithm detected this segment as highly engaging due to tone and keyword density."}
-    ]
-    
-    # Mock clip suggestions (Mock now BUT sentiment analysis WILL be working later)
-    mock_suggested_clips = [
-        {
-            "start_time": 26.0,
-            "end_time": 45.5,
-            "duration": 19.5,
-            "transcript": "Let me show you an exciting example of how this works in practice! As you can see, the algorithm detected this segment as highly engaging due to tone and keyword density.",
-            "confidence": 0.92
-        },
-        {
-            "start_time": 11.2,
-            "end_time": 25.3,
-            "duration": 14.1,
-            "transcript": "This technology can save content creators hours of editing time. The key is in analyzing speech patterns, sentiment, and audience reactions.",
-            "confidence": 0.85
-        },
-        {
-            "start_time": 0.0,
-            "end_time": 10.8,
-            "duration": 10.8,
-            "transcript": "Welcome to this video about clip farming. Today we'll explore how to automatically find the most engaging parts of your content.",
-            "confidence": 0.75
-        }
-    ]
-    
-    return video_data, mock_suggested_clips
+    return None, None
 
 # UI Layout
 st.title("🎬 Clip Farm")
@@ -762,6 +793,7 @@ with tab2:
                 processed = item['processed']
                 source_video = processed['source_video']
                 segments = processed['segments']
+                json_key = item['key']  # Get the actual JSON key
                 
                 # Extract a readable video ID from the source video URI
                 video_id = source_video.split('/')[-1].split('.')[0]
@@ -773,9 +805,8 @@ with tab2:
                     # Display each segment with controls
                     for i, segment in enumerate(segments):
                         with st.container():
-                            st.write(segment)
                             # Create columns for better layout
-                            col1, col2 = st.columns([3, 1])
+                            col1, col2, col3 = st.columns([3, 1, 1])
                             
                             with col1:
                                 st.subheader(f"Segment {i+1}")
@@ -787,6 +818,11 @@ with tab2:
                                 # Generate Video button
                                 if st.button(f"Generate Video", key=f"gen_video_{video_id}_{i}"):
                                     generate_video_for_best_segment(segment, source_video, i)
+                            
+                            with col3:
+                                # Delete Segment button (new)
+                                if st.button(f"Delete Segment", key=f"del_segment_{video_id}_{i}"):
+                                    delete_best_segment(segment, source_video, i, json_key)
                             
                             st.markdown("---")
         else:
