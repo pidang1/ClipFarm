@@ -479,13 +479,23 @@ def delete_best_segment(segment_data, source_video_uri, segment_index, json_key)
                 # Remove the segment
                 best_segments['segments'].pop(segment_index)
                 
-                # Upload the updated JSON back to S3
-                s3_client.put_object(
-                    Bucket="best-segments",
-                    Key=json_key,
-                    Body=json.dumps(best_segments, indent=2),
-                    ContentType='application/json'
-                )
+                # Check if the segments list is now empty
+                if len(best_segments['segments']) == 0:
+                    # Delete the entire JSON object since there are no more segments
+                    s3_client.delete_object(
+                        Bucket="best-segments",
+                        Key=json_key
+                    )
+                    status_placeholder.success(f"Deleted the last segment and removed the best segments object: {json_key}")
+                else:
+                    # Upload the updated JSON back to S3
+                    s3_client.put_object(
+                        Bucket="best-segments",
+                        Key=json_key,
+                        Body=json.dumps(best_segments, indent=2),
+                        ContentType='application/json'
+                    )
+                    status_placeholder.success(f"Successfully deleted segment {segment_index+1}: {deleted_segment['start_time']:.2f}s - {deleted_segment['end_time']:.2f}s")
                 
                 # If any generated videos exist for this segment, delete them too
                 if video_id in st.session_state.generated_videos:
@@ -494,8 +504,6 @@ def delete_best_segment(segment_data, source_video_uri, segment_index, json_key)
                         video for video in st.session_state.generated_videos[video_id]
                         if video.get('segment_index') != segment_index
                     ]
-                
-                status_placeholder.success(f"Successfully deleted segment {segment_index+1}: {deleted_segment['start_time']:.2f}s - {deleted_segment['end_time']:.2f}s")
                 
                 # Force refresh of S3 contents
                 fetch_s3_contents()
