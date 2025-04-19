@@ -626,7 +626,7 @@ def fetch_s3_contents():
         st.rerun()
         
     except Exception as e:
-        print(f"Error fetching S3 contents: {str(e)}")
+        print(f"Error fetching RDS Contents: {str(e)}")
 
 def schedule_s3_fetch(delay_seconds=45):
     """Schedule a fetch of S3 contents after the specified delay"""
