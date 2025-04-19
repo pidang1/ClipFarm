@@ -636,7 +636,7 @@ def schedule_s3_fetch(delay_seconds=45):
     st.session_state.fetch_scheduled = True
     
     def delayed_fetch():
-        print(f"Waiting {delay_seconds} seconds before fetching S3 contents...")
+        print(f"Waiting {delay_seconds} seconds before fetching RDS contents...")
         time.sleep(delay_seconds)
         fetch_s3_contents()
         st.session_state.fetch_scheduled = False
@@ -688,7 +688,7 @@ def preprocess_and_upload(file):
 st.title("🎬 Clip Farm")
 st.subheader("Automated Video Clip Generator")
 
-tab1, tab2 = st.tabs(["Upload Video", "S3 Contents"])
+tab1, tab2 = st.tabs(["Upload Video", "Best Segments Extracted"])
 
 with tab1:
     st.write("Upload your video file here to generate engaging clips.")
