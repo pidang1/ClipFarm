@@ -750,7 +750,7 @@ with tab2:
     st.subheader("Best Video Segments")
     
     # Add manual refresh button
-    if st.button("Refresh S3 Contents"):
+    if st.button("Refresh RDS Contents"):
         fetch_s3_contents()
     
     # Show last fetch time if available
@@ -837,10 +837,10 @@ with tab2:
             st.info("No best-segments data found in the expected format.")
         
         # Display count of objects
-        st.write(f"Total objects in S3: {len(st.session_state.s3_contents)}")
+        st.write(f"Total objects in RDS: {len(st.session_state.s3_contents)}")
     else:
-        st.info("No objects found in S3 bucket or contents haven't been fetched yet.")
+        st.info("No objects found in RDS or contents haven't been fetched yet.")
 
 # Footer
 st.markdown("---")
-st.caption("Clip Farm - With Delayed S3 Fetch | Automatically fetches S3 contents 45 seconds after upload")
+st.caption("Clip Farm - With Delayed RDS Fetch | Automatically fetches RDS contents 45 seconds after upload")
